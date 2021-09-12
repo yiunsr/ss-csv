@@ -1,0 +1,30 @@
+[package]
+name = "ss-csv"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "ss_csv"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ss_csv_bin"
+path = "src/bin.rs"
+
+[dependencies]
+bytecount = "0.6.2"
+jetscii = "0.5.0"
+bufchr = { git = "https://github.com/yiunsr/bufchr.git", tag="v0.1.1" }
+
+
+[features]
+runtime-dispatch-simd = ["bytecount/runtime-dispatch-simd"]
+generic-simd = ["bytecount/generic-simd"]
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[profile.release]
+opt-level = 3

@@ -1,0 +1,46 @@
+{
+    // IntelliSense를 사용하여 가능한 특성에 대해 알아보세요.
+    // 기존 특성에 대한 설명을 보려면 가리킵니다.
+    // 자세한 내용을 보려면 https://go.microsoft.com/fwlink/?linkid=830387을(를) 방문하세요.
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(win)cl.exe debug",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "./target/debug/deps/ss_csv_bin.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+        },
+        {
+            "name": "(win)benchmark debug",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "./target/debug/deps/bufchrbench-0850dc6d9cb4f4a2.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+        },
+        {
+            "name": "(win)test debug",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "./target/debug/deps/bufchr_tests-2b28cf553496752f.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+        },
+        {
+            "name": "(OSX) debug",
+            "type": "lldb",
+            "request": "launch",
+            "program": "./target/debug/deps/ss_csv_bin",
+            "args": [],
+            "cwd": "${workspaceRoot}",
+        }
+    ]
+}
