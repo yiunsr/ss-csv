@@ -15,8 +15,10 @@ path = "src/bin.rs"
 [dependencies]
 bytecount = "0.6.2"
 jetscii = "0.5.0"
-bufchr = { git = "https://github.com/yiunsr/bufchr.git", tag="v0.1.1" }
-
+bufchr = { git = "https://github.com/yiunsr/bufchr.git", tag="v0.3" }
+encoding_rs = "0.8.26"
+unicode-bom = "1.1.4"
+chardetng = "0.1.10"
 
 [features]
 runtime-dispatch-simd = ["bytecount/runtime-dispatch-simd"]
