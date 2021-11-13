@@ -10,8 +10,8 @@ pub fn test_ss_csv() {
         a4,b4,,,";
     let mut haystack = haystack.to_vec();
     let haystack: &[u8] = &haystack;
-    let mut csv_parser = ss_csv::csv_reader::CSVBuilder::new().rdr(haystack).build();
-    // let (csv_type, col) = csv_parser.next();
+    let mut csv_parser = ss_csv::csv_reader::CSVBuilder::new().from_reader(haystack);
+    let (csv_type, col) = csv_parser.next();
     // assert!(matches!(csv_type, ss_csv::FieldResult::Field));
 
     // assert_eq!(col, 3);
