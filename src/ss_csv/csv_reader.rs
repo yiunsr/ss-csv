@@ -135,7 +135,7 @@ impl CSVBuilder{
 		if builder.row_sep == b'\0'{	row_sep = get_row_sep(buffer);	}
 		else{	row_sep = builder.row_sep;	}
 		CSV{
-			rdr, col_sep, row_sep,
+			rdr, col_sep, row_sep, capacity: builder.capacity,
 			last_field_result: FieldResult::Field, pos:0, 
 			encoding, ref_sep_iter: None,
 		}
