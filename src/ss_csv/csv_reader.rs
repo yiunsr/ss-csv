@@ -59,6 +59,7 @@ pub struct CSV<'bufchr3, R: io::Read> {
 	rdr: io::BufReader<R>,
     col_sep: u8,
 	row_sep: u8,
+	capacity: usize,
 	last_field_result: FieldResult,
 	pos: usize,
 	encoding: &'bufchr3 encoding_rs::Encoding,
@@ -69,6 +70,7 @@ pub struct CSV<'bufchr3, R: io::Read> {
 pub struct CSVBuilder{
     col_sep: u8,
 	row_sep: u8,
+	capacity: usize,
 }
 
 impl CSVBuilder{
@@ -76,6 +78,7 @@ impl CSVBuilder{
         Self {
             col_sep: b'\0',
 			row_sep: b'\0',
+			capacity: 1024,
         }
     }
 
@@ -89,12 +92,21 @@ impl CSVBuilder{
         self
     }
 
-	pub fn from_path<P: AsRef<Path>>(&self, path: P) -> Result<CSV< File>, Box<dyn Error>> {
-		let f = File::open(path)?;
-        Ok(CSV::new(self, io::BufReader::with_capacity(10, f)))
+	pub fn capacity(mut self, capacity: usize) -> Self{
+        self.capacity = capacity;
+        self
     }
 
-	pub fn from_reader<'bufchr3, 'R:'bufchr3, R: 'R + io::Read>(&self, rdr: io::BufReader<R>) -> CSV<'bufchr3, R> {
+	pub fn from_path<P: AsRef<Path>>(&self, path: P) -> Result<CSV< File>, Box<dyn Error>> {
+		let f = File::open(path)?;
+        Ok(CSV::new(self, io::BufReader::with_capacity(self.capacity, f)))
+    }
+
+	pub fn from_read<'bufchr3, 'R:'bufchr3, R: 'R + io::Read>(&self, rdr: R) -> CSV<'bufchr3, R> {
+		CSV::new(self, io::BufReader::with_capacity(self.capacity, rdr))
+    }
+
+	pub fn from_bufread<'bufchr3, 'R:'bufchr3, R: 'R + io::Read>(&self, rdr: io::BufReader<R>) -> CSV<'bufchr3, R> {
         CSV::new(self, rdr)
     }
 }
@@ -103,7 +115,7 @@ impl CSVBuilder{
 // impl<'bufchr3, 'R:'bufchr3, R: io::Read> CSV<'bufchr3, 'R, R>{
 	impl<'bufchr3, 'R: 'bufchr3, R: 'R+io::Read> CSV<'bufchr3, R>{
 
-	fn new(builder: &CSVBuilder, rdr: io::BufReader<R>) -> CSV<'bufchr3, R> {
+	fn new(builder: &CSVBuilder, mut rdr: io::BufReader<R>) -> CSV<'bufchr3, R> {
 		let buffer= rdr.fill_buf().unwrap();
 
 		// BOM Check
