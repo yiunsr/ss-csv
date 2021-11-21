@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::error::Error;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -152,7 +153,7 @@ impl<'csv, R: 'static+io::Read> CSV<'csv, R>{
 	// 	 self.ref_sep_iter.borrow_mut().as_mut().unwrap().next()
 	// }
 
-	pub fn next(&'csv mut self) -> (FieldResult, String){
+	pub fn next(&'csv mut self) -> (FieldResult, Cow<str>){
 		let buffer= self.rdr.fill_buf().unwrap().clone();
 		
 		let mut quete_on = false;
@@ -169,15 +170,14 @@ impl<'csv, R: 'static+io::Read> CSV<'csv, R>{
 			if let Some(next_sep_pos) = next_sep_pos_wrap {
 				self.pos = next_sep_pos;
 			} else if matches!(self.last_field_result, FieldResult::FieldEnd){
-				return (FieldResult::End, "".to_string())
+				return (FieldResult::End, Cow::Borrowed(""))
 			} else {
 				let col = unsafe {
 					std::str::from_utf8_unchecked(&buffer[start_pos..])
 				};
-				let col = col.to_string();
 				println!("{}", col);
 				self.last_field_result = FieldResult::FieldEnd;
-				return (FieldResult::FieldEnd, col.to_string())
+				return (FieldResult::FieldEnd, Cow::Borrowed(col))
 			}
 			let ch = buffer[self.pos];
 			if quete_on{
@@ -196,7 +196,7 @@ impl<'csv, R: 'static+io::Read> CSV<'csv, R>{
 				self.pos += 1;
 				self.last_field_result = FieldResult::Field;
 				println!("{}", col);
-				return (FieldResult::Field, col.to_string())
+				return (FieldResult::Field, Cow::Borrowed(col))
 			}
 			else if ch == (self.row_sep as u8) {
 				self.last_field_result = FieldResult::FieldEnd;
@@ -204,7 +204,7 @@ impl<'csv, R: 'static+io::Read> CSV<'csv, R>{
 				// buffer overflow check
 				if buffer.len() == self.pos + 1 {
 					self.pos += 1;
-					return (FieldResult::FieldEnd, col.to_string())
+					return (FieldResult::FieldEnd, Cow::Borrowed(col))
 				}
 				let next_ch = buffer[self.pos+1];
 				if next_ch == 0x0A {  // check cr_lf
@@ -213,11 +213,11 @@ impl<'csv, R: 'static+io::Read> CSV<'csv, R>{
 				else{
 					self.pos += 1;
 				}
-				return (FieldResult::FieldEnd, col.to_string())
+				return (FieldResult::FieldEnd, Cow::Borrowed(col))
 			}
 			else if ch == 0x00 {
 				self.last_field_result = FieldResult::End;
-				return (FieldResult::End, col.to_string())
+				return (FieldResult::End, Cow::Borrowed(col))
 			}
 		}
 	}
