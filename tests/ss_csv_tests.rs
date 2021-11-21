@@ -7,13 +7,12 @@ mod tests {
 
     #[test]
     fn test_0001_01_checkshort() {
-        let haystack = b"a1,b11";
-        let haystack: &[u8] = &haystack.to_vec();
-        let mut csv_parser = CSVBuilder::new().from_reader(haystack);
+        let haystack = "a1,b11";
+        let mut csv_parser = CSVBuilder::new().from_read(haystack.as_bytes());
 
-        // let (csv_type, col) = csv_parser.next();
-        // assert!(matches!(csv_type, FieldResult::Field));
-        // assert_eq!(col, "a1");
+        let (csv_type, col) = csv_parser.next();
+        assert!(matches!(csv_type, FieldResult::Field));
+        assert_eq!(col, "a1");
 
         // let (csv_type, col) = csv_parser.next();
         // assert!(matches!(csv_type, FieldResult::FieldEnd));

@@ -1,4 +1,6 @@
 use std::error::Error;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::io::BufRead;
 use std::io;
 use std::fs::File;
@@ -35,6 +37,7 @@ fn get_row_sep(readed_byte:&[u8]) -> u8 {
 	0x0A
 }
 
+
 pub enum FieldResult {
     Field,
 	FieldEnd,
@@ -55,15 +58,15 @@ impl fmt::Display for FieldResult {
 // row_sep => row seperator start character
 // if \r\n => just \r
 // Box<std::io::BufReader<R>>
-pub struct CSV<'bufchr3, R: io::Read> {
+pub struct CSV<'csv, R: io::Read> {
 	rdr: io::BufReader<R>,
     col_sep: u8,
 	row_sep: u8,
 	capacity: usize,
 	last_field_result: FieldResult,
 	pos: usize,
-	encoding: &'bufchr3 encoding_rs::Encoding,
-	ref_sep_iter: Option<Bufchr3<'bufchr3>>,
+	encoding: &'csv encoding_rs::Encoding,
+	ref_sep_iter: RefCell<Option<Bufchr3<'csv>>>,
 }
 
 #[derive(Debug, Default)]
@@ -102,20 +105,19 @@ impl CSVBuilder{
         Ok(CSV::new(self, io::BufReader::with_capacity(self.capacity, f)))
     }
 
-	pub fn from_read<'bufchr3, 'R:'bufchr3, R: 'R + io::Read>(&self, rdr: R) -> CSV<'bufchr3, R> {
+	pub fn from_read<'csv, R: 'static + io::Read>(&self, rdr: R) -> CSV<'csv, R> {
 		CSV::new(self, io::BufReader::with_capacity(self.capacity, rdr))
     }
 
-	pub fn from_bufread<'bufchr3, 'R:'bufchr3, R: 'R + io::Read>(&self, rdr: io::BufReader<R>) -> CSV<'bufchr3, R> {
+	pub fn from_bufread<'csv, R: 'static + io::Read>(&self, rdr: io::BufReader<R>) -> CSV<'csv, R> {
         CSV::new(self, rdr)
     }
 }
 
 
-// impl<'bufchr3, 'R:'bufchr3, R: io::Read> CSV<'bufchr3, 'R, R>{
-	impl<'bufchr3, 'R: 'bufchr3, R: 'R+io::Read> CSV<'bufchr3, R>{
+impl<'csv, R: 'static+io::Read> CSV<'csv, R>{
 
-	fn new(builder: &CSVBuilder, mut rdr: io::BufReader<R>) -> CSV<'bufchr3, R> {
+	fn new(builder: &CSVBuilder, mut rdr: io::BufReader<R>) -> CSV<'csv, R> {
 		let buffer= rdr.fill_buf().unwrap();
 
 		// BOM Check
@@ -135,42 +137,47 @@ impl CSVBuilder{
 		if builder.row_sep == b'\0'{	row_sep = get_row_sep(buffer);	}
 		else{	row_sep = builder.row_sep;	}
 		CSV{
-			rdr, col_sep, row_sep, capacity: builder.capacity,
+			rdr: rdr, col_sep, row_sep, capacity: builder.capacity,
 			last_field_result: FieldResult::Field, pos:0, 
-			encoding, ref_sep_iter: None,
+			encoding, ref_sep_iter: RefCell::new(None),
 		}
 	}
 
-	fn buffer_next(mut self) -> Option<usize> {
-		let pos: Option<usize>;
-		if self.ref_sep_iter.is_none(){
-			let buffer = self.rdr.fill_buf().unwrap();
-			self.ref_sep_iter = Some(Bufchr3::new(
-				&buffer, self.col_sep, self.row_sep, b'\"'));
-			//pos = self.ref_sep_iter.as_deref().unwrap_or(&0);
-		}
-		pos = self.ref_sep_iter.as_mut().unwrap().next();
-		pos
-	}
+	// fn buffer_next(&'csv mut self) -> Option<usize> {
+	// 	if self.ref_sep_iter.borrow().is_none(){
+	// 		let buffer= self.rdr.fill_buf().unwrap();
+	// 		self.ref_sep_iter = RefCell::new(Some(Bufchr3::new(
+	// 			buffer, self.col_sep, self.row_sep, b'\"')));
+	// 	}
+	// 	 self.ref_sep_iter.borrow_mut().as_mut().unwrap().next()
+	// }
 
-	pub fn next(&'bufchr3 mut self) -> (FieldResult, &'bufchr3 str){
-		let buffer = self.rdr.fill_buf().unwrap();
+	pub fn next(&'csv mut self) -> (FieldResult, String){
+		let buffer= self.rdr.fill_buf().unwrap().clone();
 		
 		let mut quete_on = false;
 		let start_pos = self.pos;
 		loop{
-			let next_sep_pos_wrap = self.buffer_next(); 
+			let next_sep_pos_wrap = {
+				if self.ref_sep_iter.borrow().is_none(){
+					self.ref_sep_iter = RefCell::new(Some(Bufchr3::new(
+					buffer, self.col_sep, self.row_sep, b'\"')));
+				}
+			 	self.ref_sep_iter.borrow_mut().as_mut().unwrap().next()
+			};
+
 			if let Some(next_sep_pos) = next_sep_pos_wrap {
 				self.pos = next_sep_pos;
 			} else if matches!(self.last_field_result, FieldResult::FieldEnd){
-				return (FieldResult::End, "")
+				return (FieldResult::End, "".to_string())
 			} else {
 				let col = unsafe {
 					std::str::from_utf8_unchecked(&buffer[start_pos..])
 				};
+				let col = col.to_string();
 				println!("{}", col);
 				self.last_field_result = FieldResult::FieldEnd;
-				return (FieldResult::FieldEnd, col)
+				return (FieldResult::FieldEnd, col.to_string())
 			}
 			let ch = buffer[self.pos];
 			if quete_on{
@@ -189,7 +196,7 @@ impl CSVBuilder{
 				self.pos += 1;
 				self.last_field_result = FieldResult::Field;
 				println!("{}", col);
-				return (FieldResult::Field, col)
+				return (FieldResult::Field, col.to_string())
 			}
 			else if ch == (self.row_sep as u8) {
 				self.last_field_result = FieldResult::FieldEnd;
@@ -197,7 +204,7 @@ impl CSVBuilder{
 				// buffer overflow check
 				if buffer.len() == self.pos + 1 {
 					self.pos += 1;
-					return (FieldResult::FieldEnd, col)
+					return (FieldResult::FieldEnd, col.to_string())
 				}
 				let next_ch = buffer[self.pos+1];
 				if next_ch == 0x0A {  // check cr_lf
@@ -206,11 +213,11 @@ impl CSVBuilder{
 				else{
 					self.pos += 1;
 				}
-				return (FieldResult::FieldEnd, col)
+				return (FieldResult::FieldEnd, col.to_string())
 			}
 			else if ch == 0x00 {
 				self.last_field_result = FieldResult::End;
-				return (FieldResult::End, col)
+				return (FieldResult::End, col.to_string())
 			}
 		}
 	}
