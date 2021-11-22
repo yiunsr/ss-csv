@@ -10,14 +10,14 @@ pub fn test_ss_csv() {
         a2,b22,c222\n\
         a3,b33,c333\n\
         a4,b4,,,";
-    let mut csv_parser = ss_csv::csv_reader::CSVBuilder::new().from_read(haystack.as_bytes());
+    let mut csv_parser = ss_csv::csv_reader::CSVBuilder::new().from_buffer(haystack.as_bytes());
     let (csv_type, col) = csv_parser.next();
-    assert!(matches!(csv_type, ss_csv::FieldResult::Field));
+    assert!(matches!(csv_type, FieldResult::Field));
     assert_eq!(col, "a1");
 
-    // let (csv_type, col) = csv_parser.next();
-    // assert!(matches!(csv_type, ss_csv::FieldResult::Field));
-    // assert_eq!(col, "b11");
+    let (csv_type, col) = csv_parser.next();
+    assert!(matches!(csv_type, FieldResult::Field));
+    assert_eq!(col, "b11");
 
 
 
