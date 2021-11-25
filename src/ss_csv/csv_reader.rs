@@ -160,7 +160,8 @@ impl<'bufchr, 'csv: 'bufchr> CSV<'bufchr, 'csv>{
 		let buffer= self.buffer.clone();
 		
 		let mut quete_on = false;
-		let start_pos = self.pos;
+		let mut last_ended_quete:usize = 0;
+		let mut start_pos = self.pos;
 		loop{
 			let next_sep_pos_wrap = {
 				if self.ref_sep_iter.borrow().is_none(){
@@ -183,25 +184,31 @@ impl<'bufchr, 'csv: 'bufchr> CSV<'bufchr, 'csv>{
 				return (FieldResult::FieldEnd, Cow::Borrowed(col))
 			}
 			let ch = buffer[self.pos];
-			if quete_on{
+			if ch == b'"'{
 				quete_on = !quete_on;
+				if start_pos == self.pos{
+					start_pos += 1;
+				}
+				last_ended_quete = 1;
 				continue
 			}
-			else if ch == b'"' {
-				quete_on = !quete_on;
+			else if quete_on{
+				last_ended_quete = 0;
 				continue
 			}
-
-			let col = unsafe {
-				std::str::from_utf8_unchecked(&buffer[start_pos..self.pos])
-			};
-			if ch == self.col_sep {
+			else if ch == self.col_sep {
+				let col = unsafe {
+					std::str::from_utf8_unchecked(&buffer[start_pos..self.pos - last_ended_quete])
+				};
 				self.pos += 1;
 				self.last_field_result = FieldResult::Field;
 				println!("{}", col);
 				return (FieldResult::Field, Cow::Borrowed(col))
 			}
 			else if ch == (self.row_sep as u8) {
+				let col = unsafe {
+					std::str::from_utf8_unchecked(&buffer[start_pos..self.pos - last_ended_quete])
+				};
 				self.last_field_result = FieldResult::FieldEnd;
 
 				// buffer overflow check
@@ -219,9 +226,19 @@ impl<'bufchr, 'csv: 'bufchr> CSV<'bufchr, 'csv>{
 				return (FieldResult::FieldEnd, Cow::Borrowed(col))
 			}
 			else if ch == 0x00 {
+				let col = unsafe {
+					std::str::from_utf8_unchecked(&buffer[start_pos..self.pos - last_ended_quete])
+				};
 				self.last_field_result = FieldResult::End;
 				return (FieldResult::End, Cow::Borrowed(col))
 			}
+			last_ended_quete = 0;
+		}
+	}
+
+	pub fn skip(&mut self, skip_len: usize){
+		for _ in 0..skip_len{
+			self.next();
 		}
 	}
 
