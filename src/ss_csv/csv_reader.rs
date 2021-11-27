@@ -12,6 +12,8 @@ use std::fmt;
 use encoding_rs;
 use chardetng::EncodingDetector;
 use unicode_bom::Bom;
+use log::{info, trace, warn};
+
 
 fn get_col_sep(readed_byte:&[u8]) -> u8 {
 	let comma = bytecount::count(readed_byte, b',');
@@ -174,8 +176,16 @@ impl<'bufchr, 'csv: 'bufchr> CSV<'bufchr, 'csv>{
 			if let Some(next_sep_pos) = next_sep_pos_wrap {
 				self.pos = next_sep_pos;
 			} else if matches!(self.last_field_result, FieldResult::FieldEnd){
-				return (FieldResult::End, Cow::Borrowed(""))
+				if buffer.len() == self.pos{
+					return (FieldResult::End, Cow::Borrowed(""))
+				}
+				self.pos = buffer.len();
+				let col = unsafe {
+					std::str::from_utf8_unchecked(&buffer[start_pos..])
+				};
+				return (FieldResult::FieldEnd, Cow::Borrowed(col))
 			} else {
+				self.pos = buffer.len();
 				let col = unsafe {
 					std::str::from_utf8_unchecked(&buffer[start_pos..])
 				};
@@ -189,7 +199,9 @@ impl<'bufchr, 'csv: 'bufchr> CSV<'bufchr, 'csv>{
 				if start_pos == self.pos{
 					start_pos += 1;
 				}
-				last_ended_quete = 1;
+				else{
+					last_ended_quete = 1;
+				}
 				continue
 			}
 			else if quete_on{
@@ -202,7 +214,7 @@ impl<'bufchr, 'csv: 'bufchr> CSV<'bufchr, 'csv>{
 				};
 				self.pos += 1;
 				self.last_field_result = FieldResult::Field;
-				println!("{}", col);
+				info!("col: {}", col);
 				return (FieldResult::Field, Cow::Borrowed(col))
 			}
 			else if ch == (self.row_sep as u8) {
@@ -214,6 +226,7 @@ impl<'bufchr, 'csv: 'bufchr> CSV<'bufchr, 'csv>{
 				// buffer overflow check
 				if buffer.len() == self.pos + 1 {
 					self.pos += 1;
+					info!("col: {}", col);
 					return (FieldResult::FieldEnd, Cow::Borrowed(col))
 				}
 				let next_ch = buffer[self.pos+1];
@@ -223,12 +236,14 @@ impl<'bufchr, 'csv: 'bufchr> CSV<'bufchr, 'csv>{
 				else{
 					self.pos += 1;
 				}
+				info!("col: {}", col);
 				return (FieldResult::FieldEnd, Cow::Borrowed(col))
 			}
 			else if ch == 0x00 {
 				let col = unsafe {
 					std::str::from_utf8_unchecked(&buffer[start_pos..self.pos - last_ended_quete])
 				};
+				info!("col: {}", col);
 				self.last_field_result = FieldResult::End;
 				return (FieldResult::End, Cow::Borrowed(col))
 			}
