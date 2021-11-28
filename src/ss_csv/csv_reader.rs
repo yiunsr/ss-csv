@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::cmp;
 use std::error::Error;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -132,8 +133,9 @@ impl<'bufchr, 'csv: 'bufchr> CSV<'bufchr, 'csv>{
 			println!("Utf8");
 		}
 
+		let det_buf_len = cmp::min(buffer.len(), 1024);
 		let mut det = EncodingDetector::new();
-		det.feed(&buffer, true);
+		det.feed(&buffer[0..det_buf_len], true);
 		let encoding = det.guess(None, false);
 
 		let col_sep;
@@ -148,15 +150,6 @@ impl<'bufchr, 'csv: 'bufchr> CSV<'bufchr, 'csv>{
 			encoding, ref_sep_iter: RefCell::new(None),
 		}
 	}
-
-	// fn buffer_next(&'csv mut self) -> Option<usize> {
-	// 	if self.ref_sep_iter.borrow().is_none(){
-	// 		let buffer= self.rdr.fill_buf().unwrap();
-	// 		self.ref_sep_iter = RefCell::new(Some(Bufchr3::new(
-	// 			buffer, self.col_sep, self.row_sep, b'\"')));
-	// 	}
-	// 	 self.ref_sep_iter.borrow_mut().as_mut().unwrap().next()
-	// }
 
 	pub fn next(&mut self) -> (FieldResult, Cow<'csv, str>){
 		let buffer= self.buffer.clone();
