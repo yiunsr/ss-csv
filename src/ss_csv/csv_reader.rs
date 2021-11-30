@@ -1,12 +1,7 @@
 use std::borrow::Cow;
 use std::cmp;
-use std::error::Error;
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::io::BufRead;
-use std::io;
-use std::fs::File;
-use std::path::Path;
 use bufchr::Bufchr3;
 use bytecount;
 use std::fmt;
@@ -41,6 +36,13 @@ fn get_row_sep(readed_byte:&[u8]) -> u8 {
 	0x0A
 }
 
+fn get_col<'a>(v: &'a [u8]) -> Cow<'a, str> {
+	let col = unsafe {
+		std::str::from_utf8_unchecked(v)
+	};
+	Cow::Borrowed(col)
+}
+
 #[derive(Debug, Copy, Clone)]
 pub enum FieldResult {
     Field,
@@ -66,10 +68,8 @@ pub struct CSV<'bufchr, 'csv: 'bufchr> {
 	buffer: Rc<&'csv [u8]>,
     col_sep: u8,
 	row_sep: u8,
-	capacity: usize,
 	last_field_result: FieldResult,
 	pos: usize,
-	encoding: &'csv encoding_rs::Encoding,
 	ref_sep_iter: RefCell<Option<Bufchr3<'bufchr>>>,
 }
 
@@ -77,7 +77,6 @@ pub struct CSV<'bufchr, 'csv: 'bufchr> {
 pub struct CSVBuilder{
     col_sep: u8,
 	row_sep: u8,
-	capacity: usize,
 }
 
 impl CSVBuilder{
@@ -85,7 +84,6 @@ impl CSVBuilder{
         Self {
             col_sep: b'\0',
 			row_sep: b'\0',
-			capacity: 1024,
         }
     }
 
@@ -99,11 +97,6 @@ impl CSVBuilder{
         self
     }
 
-	pub fn capacity(mut self, capacity: usize) -> Self{
-        self.capacity = capacity;
-        self
-    }
-
 	// pub fn from_path<P: AsRef<Path>>(&self, path: P) -> Result<CSV< File>, Box<dyn Error>> {
 	// 	let f = File::open(path)?;
     //     Ok(CSV::new(self, io::BufReader::with_capacity(self.capacity, f)))
@@ -111,10 +104,6 @@ impl CSVBuilder{
 
 	// pub fn from_read<'bufchr, 'csv: 'bufchr , R: 'static + io::Read>(&self, rdr: R) -> CSV<'bufchr, 'csv, R> {
 	// 	CSV::new(self, io::BufReader::with_capacity(self.capacity, rdr))
-    // }
-
-	// pub fn from_bufread<'bufchr, 'csv: 'bufchr,  R: 'static + io::Read>(&self, rdr:io::BufReader<R>) -> CSV<'bufchr, 'csv, R> {
-    //     CSV::new(self, rdr)
     // }
 
 	pub fn from_buffer<'bufchr, 'csv: 'bufchr>(&self, buffer:&'csv [u8]) -> CSV<'bufchr, 'csv> {
@@ -133,21 +122,18 @@ impl<'bufchr, 'csv: 'bufchr> CSV<'bufchr, 'csv>{
 			println!("Utf8");
 		}
 
-		let det_buf_len = cmp::min(buffer.len(), 1024);
-		let mut det = EncodingDetector::new();
-		det.feed(&buffer[0..det_buf_len], true);
-		let encoding = det.guess(None, false);
+		let det_buf_len = cmp::min(buffer.len(), 1024*4);
 
 		let col_sep;
-		if builder.col_sep == b'\0'{	col_sep = get_col_sep(buffer);	}
+		if builder.col_sep == b'\0'{	col_sep = get_col_sep(&buffer[0..det_buf_len]);	}
 		else{	col_sep = builder.col_sep;	}
 		let row_sep;
-		if builder.row_sep == b'\0'{	row_sep = get_row_sep(buffer);	}
+		if builder.row_sep == b'\0'{	row_sep = get_row_sep(&buffer[0..det_buf_len]);	}
 		else{	row_sep = builder.row_sep;	}
 		CSV{
-			buffer: Rc::new(buffer), col_sep, row_sep, capacity: builder.capacity,
+			buffer: Rc::new(buffer), col_sep, row_sep,
 			last_field_result: FieldResult::Field, pos:0, 
-			encoding, ref_sep_iter: RefCell::new(None),
+			ref_sep_iter: RefCell::new(None),
 		}
 	}
 
@@ -173,18 +159,14 @@ impl<'bufchr, 'csv: 'bufchr> CSV<'bufchr, 'csv>{
 					return (FieldResult::End, Cow::Borrowed(""))
 				}
 				self.pos = buffer.len();
-				let col = unsafe {
-					std::str::from_utf8_unchecked(&buffer[start_pos..])
-				};
-				return (FieldResult::FieldEnd, Cow::Borrowed(col))
+				let col = get_col(&buffer[start_pos..]);
+				return (FieldResult::FieldEnd, col)
 			} else {
 				self.pos = buffer.len();
-				let col = unsafe {
-					std::str::from_utf8_unchecked(&buffer[start_pos..])
-				};
+				let col = get_col(&buffer[start_pos..]);
 				println!("{}", col);
 				self.last_field_result = FieldResult::FieldEnd;
-				return (FieldResult::FieldEnd, Cow::Borrowed(col))
+				return (FieldResult::FieldEnd, col)
 			}
 			let ch = buffer[self.pos];
 			if ch == b'"'{
@@ -202,25 +184,21 @@ impl<'bufchr, 'csv: 'bufchr> CSV<'bufchr, 'csv>{
 				continue
 			}
 			else if ch == self.col_sep {
-				let col = unsafe {
-					std::str::from_utf8_unchecked(&buffer[start_pos..self.pos - last_ended_quete])
-				};
+				let col = get_col(&buffer[start_pos..self.pos - last_ended_quete]);
 				self.pos += 1;
 				self.last_field_result = FieldResult::Field;
 				info!("col: {}", col);
-				return (FieldResult::Field, Cow::Borrowed(col))
+				return (FieldResult::Field, col)
 			}
 			else if ch == (self.row_sep as u8) {
-				let col = unsafe {
-					std::str::from_utf8_unchecked(&buffer[start_pos..self.pos - last_ended_quete])
-				};
+				let col = get_col(&buffer[start_pos..self.pos - last_ended_quete]);
 				self.last_field_result = FieldResult::FieldEnd;
 
 				// buffer overflow check
 				if buffer.len() == self.pos + 1 {
 					self.pos += 1;
 					info!("col: {}", col);
-					return (FieldResult::FieldEnd, Cow::Borrowed(col))
+					return (FieldResult::FieldEnd, col)
 				}
 				let next_ch = buffer[self.pos+1];
 				if next_ch == 0x0A {  // check cr_lf
@@ -230,15 +208,13 @@ impl<'bufchr, 'csv: 'bufchr> CSV<'bufchr, 'csv>{
 					self.pos += 1;
 				}
 				info!("col: {}", col);
-				return (FieldResult::FieldEnd, Cow::Borrowed(col))
+				return (FieldResult::FieldEnd, col)
 			}
 			else if ch == 0x00 {
-				let col = unsafe {
-					std::str::from_utf8_unchecked(&buffer[start_pos..self.pos - last_ended_quete])
-				};
+				let col = get_col(&buffer[start_pos..self.pos - last_ended_quete]);
 				info!("col: {}", col);
 				self.last_field_result = FieldResult::End;
-				return (FieldResult::End, Cow::Borrowed(col))
+				return (FieldResult::End, col)
 			}
 			last_ended_quete = 0;
 		}

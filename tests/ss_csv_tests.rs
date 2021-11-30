@@ -333,4 +333,5 @@ mod tests {
         let (csv_type, _) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::End));
     }
+
 }
