@@ -1,3 +1,3 @@
-pub mod csv_reader;
+pub mod core_reader;
 #[doc(hidden)]
-pub use self::csv_reader::{CSV, CSVBuilder, FieldResult};
+pub use self::core_reader::{Core, CoreBuilder, FieldResult};

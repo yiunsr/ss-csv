@@ -5,8 +5,6 @@ use std::rc::Rc;
 use bufchr::Bufchr3;
 use bytecount;
 use std::fmt;
-use encoding_rs;
-use chardetng::EncodingDetector;
 use unicode_bom::Bom;
 use log::{info, trace, warn};
 
@@ -64,7 +62,7 @@ impl fmt::Display for FieldResult {
 // row_sep => row seperator start character
 // if \r\n => just \r
 // Box<std::io::BufReader<R>>
-pub struct CSV<'bufchr, 'csv: 'bufchr> {
+pub struct Core<'bufchr, 'csv: 'bufchr> {
 	buffer: Rc<&'csv [u8]>,
     col_sep: u8,
 	row_sep: u8,
@@ -74,12 +72,12 @@ pub struct CSV<'bufchr, 'csv: 'bufchr> {
 }
 
 #[derive(Debug, Default)]
-pub struct CSVBuilder{
+pub struct CoreBuilder{
     col_sep: u8,
 	row_sep: u8,
 }
 
-impl CSVBuilder{
+impl CoreBuilder{
     pub fn new() -> Self {
         Self {
             col_sep: b'\0',
@@ -97,25 +95,25 @@ impl CSVBuilder{
         self
     }
 
-	// pub fn from_path<P: AsRef<Path>>(&self, path: P) -> Result<CSV< File>, Box<dyn Error>> {
+	// pub fn from_path<P: AsRef<Path>>(&self, path: P) -> Result<Core< File>, Box<dyn Error>> {
 	// 	let f = File::open(path)?;
-    //     Ok(CSV::new(self, io::BufReader::with_capacity(self.capacity, f)))
+    //     Ok(Core::new(self, io::BufReader::with_capacity(self.capacity, f)))
     // }
 
-	// pub fn from_read<'bufchr, 'csv: 'bufchr , R: 'static + io::Read>(&self, rdr: R) -> CSV<'bufchr, 'csv, R> {
-	// 	CSV::new(self, io::BufReader::with_capacity(self.capacity, rdr))
+	// pub fn from_read<'bufchr, 'csv: 'bufchr , R: 'static + io::Read>(&self, rdr: R) -> Core<'bufchr, 'csv, R> {
+	// 	Core::new(self, io::BufReader::with_capacity(self.capacity, rdr))
     // }
 
-	pub fn from_buffer<'bufchr, 'csv: 'bufchr>(&self, buffer:&'csv [u8]) -> CSV<'bufchr, 'csv> {
-        CSV::new(self, &buffer)
+	pub fn from_buffer<'bufchr, 'csv: 'bufchr>(&self, buffer:&'csv [u8]) -> Core<'bufchr, 'csv> {
+        Core::new(self, &buffer)
     }
 }
 
 
 
-impl<'bufchr, 'csv: 'bufchr> CSV<'bufchr, 'csv>{
+impl<'bufchr, 'csv: 'bufchr> Core<'bufchr, 'csv>{
 
-	fn new(builder: &CSVBuilder, buffer:&'csv [u8]) -> CSV<'bufchr, 'csv> {
+	fn new(builder: &CoreBuilder, buffer:&'csv [u8]) -> Core<'bufchr, 'csv> {
 		// BOM Check
 		let bom: Bom = Bom::from(&buffer[0..4]);
 		if Bom::Utf8 == bom {
@@ -130,7 +128,7 @@ impl<'bufchr, 'csv: 'bufchr> CSV<'bufchr, 'csv>{
 		let row_sep;
 		if builder.row_sep == b'\0'{	row_sep = get_row_sep(&buffer[0..det_buf_len]);	}
 		else{	row_sep = builder.row_sep;	}
-		CSV{
+		Core{
 			buffer: Rc::new(buffer), col_sep, row_sep,
 			last_field_result: FieldResult::Field, pos:0, 
 			ref_sep_iter: RefCell::new(None),

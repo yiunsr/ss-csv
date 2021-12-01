@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate bencher;
 
-use ss_csv::ss_csv::CSVBuilder;
+use ss_csv::ss_csv::CoreBuilder;
 use ss_csv::ss_csv::FieldResult;
 use bencher::Bencher;
 use csv_core::{Reader, ReadFieldResult};
@@ -11,7 +11,7 @@ static HAYSTACK_GDP_CSV: &'static [u8] = include_bytes!("../data/test/gdp_org.cs
 
 fn parse_gdp_csv(bench: &mut Bencher) {
     bench.iter(|| {
-        let mut csv_parser = CSVBuilder::new().from_buffer(HAYSTACK_GDP_CSV);
+        let mut csv_parser = CoreBuilder::new().from_buffer(HAYSTACK_GDP_CSV);
         let mut csv_type = FieldResult::Field;
         let mut count_fields = 0;
         let mut count_records = 0;
