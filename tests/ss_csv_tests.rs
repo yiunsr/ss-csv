@@ -4,6 +4,7 @@ mod tests {
     use super::*;
 
     static HAYSTACK_GDP_CSV: &'static [u8] = include_bytes!("../data/test/gdp_org.csv");
+    static HAYSTACK_CSV_01: &'static [u8] = include_bytes!("../data/test/csv_01.csv");
 
     #[test]
     fn test_0001_01_singleline() {
@@ -334,4 +335,29 @@ mod tests {
         assert!(matches!(csv_type, FieldResult::End));
     }
 
+    #[test]
+    fn test_0003_02_parse_csv() {
+        let haystack = HAYSTACK_CSV_01;
+        let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
+
+        let mut count_fields = 0;
+        let mut count_records = 0;
+        loop{
+            let (csv_type, _) = csv_parser.next();    
+            match csv_type{
+                FieldResult::Field => {
+                    count_fields += 1;
+                },
+                FieldResult::FieldEnd =>{
+                    count_fields += 1;
+                    count_records += 1;
+                },
+                _ =>{
+                    break;
+                }
+            }
+        }
+        assert_eq!(count_records, 5);
+        assert_eq!(count_fields, 10);
+    }
 }
