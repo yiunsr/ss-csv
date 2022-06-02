@@ -114,6 +114,18 @@ impl CoreBuilder{
 impl<'bufchr, 'csv: 'bufchr> Core<'bufchr, 'csv>{
 
 	fn new(builder: &CoreBuilder, buffer:&'csv [u8]) -> Core<'bufchr, 'csv> {
+		let expensive_closure = |num: u32| -> u32 {
+			println!("calculating slowly...");
+			num
+		};
+
+		// let col_closure = <'a>|v: &'a [u8]| -> Cow<'a, str> {
+		// 	let col = unsafe {
+		// 		std::str::from_utf8_unchecked(v)
+		// 	};
+		// 	Cow::Borrowed(col)
+		// };
+
 		// BOM Check
 		let bom: Bom = Bom::from(&buffer[0..4]);
 		if Bom::Utf8 == bom {
@@ -139,8 +151,10 @@ impl<'bufchr, 'csv: 'bufchr> Core<'bufchr, 'csv>{
 		let buffer= self.buffer.clone();
 		
 		let mut quete_on = false;
-		let mut last_ended_quete:usize = 0;
-		let mut start_pos = self.pos;
+		let mut start_quete:usize = 0;
+		let mut last_quete:usize = 0;
+		let start_pos = self.pos;
+		
 		loop{
 			let next_sep_pos_wrap = {
 				if self.ref_sep_iter.borrow().is_none(){
@@ -157,39 +171,59 @@ impl<'bufchr, 'csv: 'bufchr> Core<'bufchr, 'csv>{
 					return (FieldResult::End, Cow::Borrowed(""))
 				}
 				self.pos = buffer.len();
-				let col = get_col(&buffer[start_pos..]);
+				let col = get_col(&buffer[start_pos + start_quete..]);
 				return (FieldResult::FieldEnd, col)
 			} else {
 				self.pos = buffer.len();
-				let col = get_col(&buffer[start_pos..]);
+				let col = get_col(&buffer[start_pos + start_quete..]);
 				println!("{}", col);
 				self.last_field_result = FieldResult::FieldEnd;
 				return (FieldResult::FieldEnd, col)
 			}
 			let ch = buffer[self.pos];
+			let mut next_ch = '\0' as u8;
+			if self.pos + 1 < buffer.len(){
+				next_ch = buffer[self.pos+1];
+			}
+			
 			if ch == b'"'{
-				quete_on = !quete_on;
+				// check start_quete
 				if start_pos == self.pos{
-					start_pos += 1;
+					start_quete = 1;
+					quete_on = true;
+					continue
 				}
-				else{
-					last_ended_quete = 1;
+				// check last_quete
+				else if !quete_on && (next_ch == self.col_sep || next_ch == self.row_sep){
+					last_quete = 1;
+					continue
 				}
+				else if quete_on && (next_ch == self.col_sep || next_ch == self.row_sep){
+					quete_on = !quete_on;
+					last_quete = 1;
+					continue
+				}
+				else if next_ch == b'"'{  // Double Double Quotes("") check
+					// skip next Quote
+					let next_sep_pos = self.ref_sep_iter.borrow_mut().as_mut().unwrap().next().unwrap();
+					self.pos = next_sep_pos;
+					continue
+				}
+				quete_on = !quete_on;
 				continue
 			}
 			else if quete_on{
-				last_ended_quete = 0;
 				continue
 			}
 			else if ch == self.col_sep {
-				let col = get_col(&buffer[start_pos..self.pos - last_ended_quete]);
+				let col = get_col(&buffer[start_pos + start_quete..self.pos - last_quete]);
 				self.pos += 1;
 				self.last_field_result = FieldResult::Field;
 				info!("col: {}", col);
 				return (FieldResult::Field, col)
 			}
 			else if ch == (self.row_sep as u8) {
-				let col = get_col(&buffer[start_pos..self.pos - last_ended_quete]);
+				let col = get_col(&buffer[start_pos + start_quete..self.pos - last_quete]);
 				self.last_field_result = FieldResult::FieldEnd;
 
 				// buffer overflow check
@@ -209,12 +243,12 @@ impl<'bufchr, 'csv: 'bufchr> Core<'bufchr, 'csv>{
 				return (FieldResult::FieldEnd, col)
 			}
 			else if ch == 0x00 {
-				let col = get_col(&buffer[start_pos..self.pos - last_ended_quete]);
+				let col = get_col(&buffer[start_pos + start_quete..self.pos - last_quete]);
 				info!("col: {}", col);
 				self.last_field_result = FieldResult::End;
 				return (FieldResult::End, col)
 			}
-			last_ended_quete = 0;
+			last_quete = 0;
 		}
 	}
 
@@ -224,4 +258,10 @@ impl<'bufchr, 'csv: 'bufchr> Core<'bufchr, 'csv>{
 		}
 	}
 
+	pub fn position_estimate(&self) -> usize{
+		self.pos
+	}
+
 }
+
+

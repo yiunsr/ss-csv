@@ -18,8 +18,6 @@ pub fn test_ss_csv() {
     assert!(matches!(csv_type, ss_csv::FieldResult::Field));
     assert_eq!(col, "b11");
 
-
-
     // assert_eq!(col, 3);
 
     // let (csv_type, col) = csv_parser.next();
