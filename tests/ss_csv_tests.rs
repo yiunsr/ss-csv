@@ -215,7 +215,7 @@ mod tests {
         let (csv_type, col) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::Field));
         println!("{}", col);
-        assert_eq!(col, "c\"c1\"1");
+        assert_eq!(col, "c\"\"c1\"\"1");
 
         let (csv_type, col) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::FieldEnd));
