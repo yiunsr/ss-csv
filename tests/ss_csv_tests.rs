@@ -22,8 +22,10 @@ mod tests {
 
         let (csv_type, _) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::End));
+    }
 
-        println!("==== 02 ====");
+    #[test]
+    fn test_0001_02_singleline() {
         let haystack = "a1, b11\n";
         let mut csv_parser = CoreBuilder::new().from_buffer(haystack.as_bytes());
 
@@ -40,7 +42,7 @@ mod tests {
     }
 
     #[test]
-    fn test_0001_02_singleline() {
+    fn test_0001_03_singleline() {
         println!("==== 01 ====");
         let haystack = b"a1\tb11\r";
         let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
@@ -55,8 +57,10 @@ mod tests {
 
         let (csv_type, _) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::End));
+    }
 
-        println!("==== 02 ====");
+    #[test]
+    fn test_0001_04_singleline() {
         let haystack = b"a1|b11\r\n";
         let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
 
@@ -73,8 +77,7 @@ mod tests {
     }
 
     #[test]
-    fn test_0001_03_singleline() {
-        println!("==== 01 ====");
+    fn test_0001_05_singleline() {
         let haystack = b"a1,b11,c111\n";
         let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
 
@@ -92,8 +95,10 @@ mod tests {
 
         let (csv_type, _) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::End));
+    }
 
-        println!("==== 02 ====");
+    #[test]
+    fn test_0001_06_singleline() {
         let haystack = b"a,1|b11\r\n";
         let mut csv_parser = CoreBuilder::new().col_sep(b'|').from_buffer(haystack);
 
@@ -107,8 +112,10 @@ mod tests {
 
         let (csv_type, _) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::End));
+    }
 
-        println!("==== 03 ====");
+    #[test]
+    fn test_0001_07_singleline() {
         let haystack = b"a1,\"b1,1\",c111\r\n";
         let mut csv_parser = CoreBuilder::new().col_sep(b',').from_buffer(haystack);
 
@@ -128,8 +135,7 @@ mod tests {
     }
 
     #[test]
-    fn test_0001_04_singleline() {
-        println!("==== 01 ====");
+    fn test_0001_08_singleline() {
         let haystack = b"a1,,c111\n";
         let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
 
@@ -150,8 +156,7 @@ mod tests {
     }
 
     #[test]
-    fn test_0001_05_singleline() {
-        println!("==== 01 ====");
+    fn test_0001_09_singleline() {
         // let haystack = b"\"a1\",\"\",\"\",\"d111\"\n";
         let haystack = br#""a1","","","d111""#;
         let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
@@ -178,8 +183,7 @@ mod tests {
     }
 
     #[test]
-    fn test_0001_06_singleline() {
-        println!("==== 01 ====");
+    fn test_0001_10_singleline() {
         // ""a1,b"1,c11"""
         let haystack = br#"""a1,b"1,c1"""#;
         let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
@@ -199,8 +203,7 @@ mod tests {
     }
 
     #[test]
-    fn test_0001_07_singleline() {
-        println!("==== 01 ====");
+    fn test_0001_11_singleline() {
         // ""a1,b"1,c11"""
         let haystack = br#"a1,b"b1"1,c""c1""1,d1""#;
         let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
@@ -226,9 +229,10 @@ mod tests {
 
         let (csv_type, _) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::End));
+    }
 
-        println!("==== 02 ====");
-        // ""a1,b"1,c11"""
+        #[test]
+    fn test_0001_12_singleline() {
         let haystack = br#"""a1""",b"b1"1,c""c1""1,d1""#;
         let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
         
@@ -272,8 +276,10 @@ mod tests {
 
         let (csv_type, _) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::End));
+    }
 
-        println!("==== 02 ====");
+    #[test]
+    fn test_0002_02_dualline() {
         let haystack = b"a1\nb2\n";
         let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
 
@@ -287,8 +293,10 @@ mod tests {
 
         let (csv_type, _) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::End));
+    }
 
-        println!("==== 03 ====");
+    #[test]
+    fn test_0002_03_dualline() {
         let haystack = b"a1\rb2\r";
         let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
 
@@ -302,8 +310,10 @@ mod tests {
 
         let (csv_type, _) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::End));
+    }
 
-        println!("==== 04 ====");
+    #[test]
+    fn test_0002_04_dualline() {
         let haystack = b"a1\r\nb2\r\n";
         let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
 
@@ -317,8 +327,10 @@ mod tests {
 
         let (csv_type, _) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::End));
+    }
 
-        println!("==== 05 ====");
+    #[test]
+    fn test_0002_05_dualline() {
         let haystack = b"\"a1\n111\"\nb222";
         let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
 
@@ -335,8 +347,7 @@ mod tests {
     }
 
     #[test]
-    fn test_0002_02_dualline() {
-        println!("==== 01 ====");
+    fn test_0002_06_dualline() {
         let haystack = b"a1,b11\na2,b22";
         let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
 
@@ -358,8 +369,10 @@ mod tests {
 
         let (csv_type, _) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::End));
+    }
 
-        println!("==== 02 ====");
+    #[test]
+    fn test_0002_07_dualline() {
         let haystack = b"a1,b11\na2,b22\n";
         let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
 
