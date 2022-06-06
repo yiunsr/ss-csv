@@ -157,7 +157,7 @@ mod tests {
 
     #[test]
     fn test_0001_09_singleline() {
-        // let haystack = b"\"a1\",\"\",\"\",\"d111\"\n";
+        // "a1", "", "", "d111"
         let haystack = br#""a1","","","d111""#;
         let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
 
@@ -176,7 +176,7 @@ mod tests {
         let (csv_type, col) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::FieldEnd));
         println!("col : {}", col);
-        assert_eq!(col,"d111\"");
+        assert_eq!(col,"d111");
 
         let (csv_type, _) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::End));
@@ -184,17 +184,19 @@ mod tests {
 
     #[test]
     fn test_0001_10_singleline() {
-        // ""a1,b"1,c11"""
+        // ""a1,b"1,c11"""  =>  "a
         let haystack = br#"""a1,b"1,c1"""#;
         let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
         
         let (csv_type, col) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::Field));
-        assert_eq!(col, "\"a1");
+        println!("{}", col);
+        assert_eq!(col, "\"a1,b\"1");
 
         let (csv_type, col) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::FieldEndWithQQ));
-        assert_eq!(col,"b\"1,c1\"\"");
+        println!("{}", col);
+        assert_eq!(col,"c1\"\"");
 
         let (csv_type, _) = csv_parser.next();
         println!("{}", csv_type);
@@ -225,36 +227,60 @@ mod tests {
         let (csv_type, col) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::FieldEnd));
         println!("{}", col);
-        assert_eq!(col,"d1\"");
+        assert_eq!(col,"d1");
 
         let (csv_type, _) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::End));
     }
 
-        #[test]
+    #[test]
     fn test_0001_12_singleline() {
-        let haystack = br#"""a1""",b"b1"1,c""c1""1,d1""#;
+        // """a1""",""b1"","""c1""",""""d1""""
+        let haystack = br#""""a1""",""b1"",c1"#;
+        let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
+        
+        let (mut csv_type, mut col) = csv_parser.next();
+        assert!(matches!(csv_type, FieldResult::FieldWithQQ));
+        assert_eq!(col, "\"\"a1\"\"");
+
+        while matches!(csv_type, FieldResult::Field) || matches!(csv_type, FieldResult::FieldWithQQ){
+            (csv_type, col) = csv_parser.next();
+            // no rule. just check no panic
+            println!("{}", csv_type);
+            println!("{}", col);
+        }
+        (csv_type, col) = csv_parser.next();
+        println!("{}", csv_type);
+        println!("{}", col);
+    }
+
+    #[test]
+    fn test_0001_13_singleline() {
+        // """a1""","b""b1""1","""c1""","""""d1""""", """e1"""
+        let haystack = br#""""a1""","b""b1""1","""c1""","""""d1""""","""e1""""#;
         let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
         
         let (csv_type, col) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::FieldWithQQ));
-        println!("{}", col);
         assert_eq!(col, "\"\"a1\"\"");
 
         let (csv_type, col) = csv_parser.next();
-        assert!(matches!(csv_type, FieldResult::Field));
-        println!("{}", col);
-        assert_eq!(col, "b\"b1\"1");
+        assert!(matches!(csv_type, FieldResult::FieldWithQQ));
+        assert_eq!(col, "b\"\"b1\"\"1");
 
         let (csv_type, col) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::FieldWithQQ));
-        println!("{}", col);
-        assert_eq!(col, "c\"\"c1\"\"1");
+        assert_eq!(col, "\"\"c1\"\"");
 
         let (csv_type, col) = csv_parser.next();
-        assert!(matches!(csv_type, FieldResult::FieldEnd));
         println!("{}", col);
-        assert_eq!(col,"d1\"");
+        assert!(matches!(csv_type, FieldResult::FieldWithQQ));
+        assert_eq!(col, "\"\"\"\"d1\"\"\"\"");
+
+        let (csv_type, col) = csv_parser.next();
+        println!("{}", col);
+        assert!(matches!(csv_type, FieldResult::FieldEndWithQQ));
+        assert_eq!(col, "\"\"e1\"\"");
 
         let (csv_type, _) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::End));

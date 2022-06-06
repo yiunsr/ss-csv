@@ -161,7 +161,6 @@ impl<'bufchr, 'csv: 'bufchr> Core<'bufchr, 'csv>{
 			} else {
 				self.pos = buffer.len();
 				let col = self.get_col();
-				println!("{}", col);
 				self.last_field_result = FieldResult::FieldEnd;
 				return (cur_fieldend_type, col)
 			}
@@ -174,16 +173,21 @@ impl<'bufchr, 'csv: 'bufchr> Core<'bufchr, 'csv>{
 			if ch == b'"'{
 				// check start_quote
 				if self.start_pos == self.pos{
+					if next_ch == b'"'{  // Double Double Quotes("") check
 					self.start_quote = 1;
-					quote_on = true;
+					}
+					else{
+						self.start_quote = 1;
+						quote_on = true;
+					}
 					continue
 				}
 				// check last_quote
-				else if !quote_on && (next_ch == self.col_sep || next_ch == self.row_sep){
+				else if !quote_on && (next_ch == self.col_sep || next_ch == self.row_sep || next_ch == b'\0'){
 					self.end_quote = 1;
 					continue
 				}
-				else if quote_on && (next_ch == self.col_sep || next_ch == self.row_sep){
+				else if quote_on && (next_ch == self.col_sep || next_ch == self.row_sep || next_ch == b'\0'){
 					quote_on = !quote_on;
 					self.end_quote = 1;
 					continue
