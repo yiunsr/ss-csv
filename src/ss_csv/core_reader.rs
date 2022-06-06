@@ -34,25 +34,21 @@ fn get_row_sep(readed_byte:&[u8]) -> u8 {
 	0x0A
 }
 
-// fn get_col<'a>(v: &'a [u8]) -> Cow<'a, str> {
-// 	let col = unsafe {
-// 		std::str::from_utf8_unchecked(v)
-// 	};
-// 	Cow::Borrowed(col)
-// }
-
 #[derive(Debug, Copy, Clone)]
 pub enum FieldResult {
     Field,
+	FieldWithQQ,
 	FieldEnd,
+	FieldEndWithQQ,
     End,
-
 }
 impl fmt::Display for FieldResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
        match *self {
 		FieldResult::Field => write!(f, "FieldResult::Field"),
+		FieldResult::FieldWithQQ => write!(f, "FieldResult::FieldWithQQ"),
 		FieldResult::FieldEnd => write!(f, "FieldResult::FieldEnd"),
+		FieldResult::FieldEndWithQQ => write!(f, "FieldResult::FieldEndWithQQ"),
 		FieldResult::End => write!(f, "FieldResult::End"),
        }
     }
@@ -70,8 +66,6 @@ pub struct Core<'bufchr, 'csv: 'bufchr> {
 	pos: usize,
 	ref_sep_iter: RefCell<Option<Bufchr3<'bufchr>>>,
 	start_pos: usize, start_quote: usize, end_quote: usize,
-	// double double quote
-	in_dd_quote: bool,
 }
 
 #[derive(Debug, Default)]
@@ -132,9 +126,8 @@ impl<'bufchr, 'csv: 'bufchr> Core<'bufchr, 'csv>{
 			buffer: Rc::new(buffer), col_sep, row_sep,
 			last_field_result: FieldResult::Field, pos:0, 
 			ref_sep_iter: RefCell::new(None), 
-			start_pos: 0, start_quote: 0, end_quote: 0, in_dd_quote: false,
+			start_pos: 0, start_quote: 0, end_quote: 0,
 		}
-
 	}
 
 	pub fn next(&mut self) -> (FieldResult, Cow<'csv, str>){
@@ -144,7 +137,8 @@ impl<'bufchr, 'csv: 'bufchr> Core<'bufchr, 'csv>{
 		self.start_quote = 0;
 		self.end_quote = 0;
 		self.start_pos = self.pos;
-		self.in_dd_quote = false;
+		let mut cur_field_type = FieldResult::Field;
+		let mut cur_fieldend_type = FieldResult::FieldEnd;
 		
 		loop{
 			let next_sep_pos_wrap = {
@@ -163,13 +157,13 @@ impl<'bufchr, 'csv: 'bufchr> Core<'bufchr, 'csv>{
 				}
 				self.pos = buffer.len();
 				let col = self.get_col();
-				return (FieldResult::FieldEnd, col)
+				return (cur_fieldend_type, col)
 			} else {
 				self.pos = buffer.len();
 				let col = self.get_col();
 				println!("{}", col);
 				self.last_field_result = FieldResult::FieldEnd;
-				return (FieldResult::FieldEnd, col)
+				return (cur_fieldend_type, col)
 			}
 			let ch = buffer[self.pos];
 			let mut next_ch = '\0' as u8;
@@ -198,7 +192,8 @@ impl<'bufchr, 'csv: 'bufchr> Core<'bufchr, 'csv>{
 					// skip next Quote
 					let next_sep_pos = self.ref_sep_iter.borrow_mut().as_mut().unwrap().next().unwrap();
 					self.pos = next_sep_pos;
-					self.in_dd_quote = true;
+					cur_field_type = FieldResult::FieldWithQQ;
+					cur_fieldend_type = FieldResult::FieldEndWithQQ;
 					continue
 				}
 				quote_on = !quote_on;
@@ -212,7 +207,7 @@ impl<'bufchr, 'csv: 'bufchr> Core<'bufchr, 'csv>{
 				self.pos += 1;
 				self.last_field_result = FieldResult::Field;
 				info!("col: {}", col);
-				return (FieldResult::Field, col)
+				return (cur_field_type, col)
 			}
 			else if ch == (self.row_sep as u8) {
 				let col = self.get_col();
@@ -222,7 +217,7 @@ impl<'bufchr, 'csv: 'bufchr> Core<'bufchr, 'csv>{
 				if buffer.len() == self.pos + 1 {
 					self.pos += 1;
 					info!("col: {}", col);
-					return (FieldResult::FieldEnd, col)
+					return (cur_fieldend_type, col)
 				}
 				let next_ch = buffer[self.pos+1];
 				if next_ch == 0x0A {  // check cr_lf
@@ -232,7 +227,7 @@ impl<'bufchr, 'csv: 'bufchr> Core<'bufchr, 'csv>{
 					self.pos += 1;
 				}
 				info!("col: {}", col);
-				return (FieldResult::FieldEnd, col)
+				return (cur_fieldend_type, col)
 			}
 			else if ch == 0x00 {
 				let col = self.get_col();

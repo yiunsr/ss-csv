@@ -16,14 +16,25 @@ fn parse_gdp_csv(bench: &mut Bencher) {
         let mut count_fields = 0;
         let mut count_records = 0;
         loop{
-            let (csv_type_, _) = csv_parser.next();    
+            let (csv_type_, col) = csv_parser.next();    
             match csv_type{
                 FieldResult::Field => {
                     count_fields += 1;
                 },
-                FieldResult::FieldEnd =>{
+                FieldResult::FieldWithQQ => {
+                    count_fields += 1;
+                    let col_string = col.to_string();
+                    let _ = col_string.replace("\"\"", "\"");
+                },
+                FieldResult::FieldEnd  =>{
                     count_fields += 1;
                     count_records += 1;
+                },
+                FieldResult::FieldEndWithQQ => {
+                    count_fields += 1;
+                    count_records += 1;
+                    let col_string = col.to_string();
+                    let _ = col_string.replace("\"\"", "\"");
                 },
                 _ =>{
                     break;
@@ -31,7 +42,7 @@ fn parse_gdp_csv(bench: &mut Bencher) {
             }
             csv_type = csv_type_;
         }
-        //println!("row : {}, col : {}", count_records, count_fields);
+        println!("row : {}, col : {}", count_records, count_fields);
     });
 }
 

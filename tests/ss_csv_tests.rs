@@ -189,18 +189,20 @@ mod tests {
         assert_eq!(col, "\"a1");
 
         let (csv_type, col) = csv_parser.next();
-        assert!(matches!(csv_type, FieldResult::FieldEnd));
+        assert!(matches!(csv_type, FieldResult::FieldEndWithQQ));
         assert_eq!(col,"b\"1,c1\"\"");
 
         let (csv_type, _) = csv_parser.next();
+        println!("{}", csv_type);
         assert!(matches!(csv_type, FieldResult::End));
+        println!("End");
     }
 
     #[test]
     fn test_0001_07_singleline() {
         println!("==== 01 ====");
         // ""a1,b"1,c11"""
-        let haystack = br#"a1,b"b1"1,c""c1""1,d1"#;
+        let haystack = br#"a1,b"b1"1,c""c1""1,d1""#;
         let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
         
         let (csv_type, col) = csv_parser.next();
@@ -213,13 +215,42 @@ mod tests {
         assert_eq!(col, "b\"b1\"1");
 
         let (csv_type, col) = csv_parser.next();
-        assert!(matches!(csv_type, FieldResult::Field));
+        assert!(matches!(csv_type, FieldResult::FieldWithQQ));
         println!("{}", col);
         assert_eq!(col, "c\"\"c1\"\"1");
 
         let (csv_type, col) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::FieldEnd));
-        assert_eq!(col,"d1");
+        println!("{}", col);
+        assert_eq!(col,"d1\"");
+
+        let (csv_type, _) = csv_parser.next();
+        assert!(matches!(csv_type, FieldResult::End));
+
+        println!("==== 02 ====");
+        // ""a1,b"1,c11"""
+        let haystack = br#"""a1""",b"b1"1,c""c1""1,d1""#;
+        let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
+        
+        let (csv_type, col) = csv_parser.next();
+        assert!(matches!(csv_type, FieldResult::FieldWithQQ));
+        println!("{}", col);
+        assert_eq!(col, "\"\"a1\"\"");
+
+        let (csv_type, col) = csv_parser.next();
+        assert!(matches!(csv_type, FieldResult::Field));
+        println!("{}", col);
+        assert_eq!(col, "b\"b1\"1");
+
+        let (csv_type, col) = csv_parser.next();
+        assert!(matches!(csv_type, FieldResult::FieldWithQQ));
+        println!("{}", col);
+        assert_eq!(col, "c\"\"c1\"\"1");
+
+        let (csv_type, col) = csv_parser.next();
+        assert!(matches!(csv_type, FieldResult::FieldEnd));
+        println!("{}", col);
+        assert_eq!(col,"d1\"");
 
         let (csv_type, _) = csv_parser.next();
         assert!(matches!(csv_type, FieldResult::End));
@@ -352,8 +383,50 @@ mod tests {
         assert!(matches!(csv_type, FieldResult::End));
     }
 
+
     #[test]
-    fn test_0003_01_parse_csv() {
+    fn test_0003_01_multiline() {
+        println!("==== 01 ====");
+        let haystack = br#"a1,b11,c111
+a2,"b22"
+"a33",b""b3""3,c""c3""3
+a4,b4,,,"#;
+        let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
+        let (csv_type, col) = csv_parser.next();
+        assert!(matches!(csv_type, FieldResult::Field));
+        assert_eq!(col, "a1");
+
+        let (csv_type, col) = csv_parser.next();
+        assert!(matches!(csv_type, FieldResult::Field));
+        assert_eq!(col, "b11");
+
+        let (csv_type, col) = csv_parser.next();
+        assert!(matches!(csv_type, FieldResult::FieldEnd));
+        assert_eq!(col, "c111");
+
+        let (csv_type, col) = csv_parser.next();
+        assert!(matches!(csv_type, FieldResult::Field));
+        assert_eq!(col, "a2");
+
+        let (csv_type, col) = csv_parser.next();
+        assert!(matches!(csv_type, FieldResult::FieldEnd));
+        assert_eq!(col, "b22");
+
+        let (csv_type, col) = csv_parser.next();
+        assert!(matches!(csv_type, FieldResult::Field));
+        assert_eq!(col, "a33");
+
+        let (csv_type, col) = csv_parser.next();
+        assert!(matches!(csv_type, FieldResult::FieldWithQQ));
+        assert_eq!(col, "b\"\"b3\"\"3");
+
+        let (csv_type, col) = csv_parser.next();
+        assert!(matches!(csv_type, FieldResult::FieldEndWithQQ));
+        assert_eq!(col, "c\"\"c3\"\"3");
+    }
+
+    #[test]
+    fn test_0004_01_parse_csv() {
         let haystack = HAYSTACK_GDP_CSV;
         let mut csv_parser = CoreBuilder::new().from_buffer(haystack);
 

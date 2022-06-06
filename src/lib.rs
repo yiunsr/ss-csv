@@ -5,10 +5,10 @@ use std::io::Cursor;
 pub fn test_ss_csv() {
 
     println!("======== Start lib.rs  ========");
-    let haystack = "a1,b11,c111\n\
-        a2,b22,c222\n\
-        a3,b33,c333\n\
-        a4,b4,,,";
+    let haystack = r#"a1,b11,c111
+a2,b22
+"a33",bb33
+a4,b4,,,"#;
     let mut csv_parser = ss_csv::core_reader::CoreBuilder::new().from_buffer(haystack.as_bytes());
     let (csv_type, col) = csv_parser.next();
     assert!(matches!(csv_type, ss_csv::FieldResult::Field));
@@ -18,15 +18,31 @@ pub fn test_ss_csv() {
     assert!(matches!(csv_type, ss_csv::FieldResult::Field));
     assert_eq!(col, "b11");
 
-    // assert_eq!(col, 3);
+    let (csv_type, col) = csv_parser.next();
+    assert!(matches!(csv_type, ss_csv::FieldResult::FieldEnd));
+    assert_eq!(col, "c111");
 
-    // let (csv_type, col) = csv_parser.next();
-    // assert_eq!(csv_type, FieldResult::Field);
-    // assert_eq!(col, 7);
+    let (csv_type, col) = csv_parser.next();
+    assert!(matches!(csv_type, ss_csv::FieldResult::Field));
+    assert_eq!(col, "a2");
 
-    // let (csv_type, col) = csv_parser.next();
-    // assert_eq!(csv_type, FieldResult::Field);
-    // assert_eq!(col, 12);
+    let (csv_type, col) = csv_parser.next();
+    assert!(matches!(csv_type, ss_csv::FieldResult::FieldEnd));
+    assert_eq!(col, "b22");
+
+    let (csv_type, col) = csv_parser.next();
+    assert!(matches!(csv_type, ss_csv::FieldResult::FieldEnd));
+    assert_eq!(col, "c222");
+
+    let (csv_type, col) = csv_parser.next();
+    assert!(matches!(csv_type, ss_csv::FieldResult::Field));
+    assert_eq!(col, "a3");
+
+    let (csv_type, col) = csv_parser.next();
+    assert!(matches!(csv_type, ss_csv::FieldResult::FieldEnd));
+    assert_eq!(col, "b33");
+
+    
 
     println!("======== End lib.rs ========");
 }
